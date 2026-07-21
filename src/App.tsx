@@ -1,42 +1,54 @@
-import { useEffect, useState } from 'react';
-import { supabase } from './integrations/supabase/client';
+import { useEffect, useState } from 'react'
+import { supabase } from './integrations/supabase/client'
+
+type SupabaseRecord = Record<string, unknown>
 
 function App() {
-  const [status, setStatus] = useState<string>('جاري التحقق من الاتصال بـ Supabase...');
+  const [data, setData] = useState<SupabaseRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    async function checkConnection() {
+    const fetchData = async () => {
       try {
-        const { error } = await supabase.from('').select('*').limit(1);
-        if (error && error.code !== 'PGRST204' && error.code !== '42P01') {
-          setStatus(`خطأ في الاتصال: ${error.message}`);
-        } else {
-          setStatus('تم الاتصال بـ Supabase بنجاح! 🚀');
+        setLoading(true)
+        const { data, error } = await supabase.from('profiles').select('*').limit(5)
+
+        if (error) {
+          throw error
         }
-      } catch (err: any) {
-        setStatus(`فشل الاتصال: ${err.message || 'خطأ غير معروف'}`);
+
+        setData((data ?? []) as SupabaseRecord[])
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unable to load data from Supabase.'
+        setError(message)
+      } finally {
+        setLoading(false)
       }
     }
 
-    checkConnection();
-  }, []);
+    void fetchData()
+  }, [])
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      height: '100vh',
-      fontFamily: 'sans-serif',
-      direction: 'rtl'
-    }}>
-      <h1>CodeSurf App</h1>
-      <p style={{ fontSize: '1.2rem', padding: '10px 20px', borderRadius: '8px', background: '#f0f0f0' }}>
-        {status}
-      </p>
-    </div>
-  );
+    <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', lineHeight: 1.5 }}>
+      <h1>Supabase integration</h1>
+      <p>The app is connected to Supabase via the shared client and fetches data from the configured project.</p>
+
+      {loading && <p>Loading data…</p>}
+      {error && <p role="alert">{error}</p>}
+
+      {!loading && !error && data.length === 0 && <p>No rows were returned from Supabase.</p>}
+
+      {!loading && !error && data.length > 0 && (
+        <ul>
+          {data.map((item, index) => (
+            <li key={String(item.id ?? index)}>{JSON.stringify(item)}</li>
+          ))}
+        </ul>
+      )}
+    </main>
+  )
 }
 
-export default App;
+export default App
